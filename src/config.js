@@ -9,9 +9,16 @@ const ROOT_DIR = path.resolve(__dirname, '..');
 
 export const PORT = process.env.PORT || 3000;
 
+// ─── Persistent data directory (override with DATA_DIR env var, e.g. Railway Volume mount path) ───
+
+const DATA_DIR = process.env.DATA_DIR ? path.resolve(process.env.DATA_DIR) : ROOT_DIR;
+if (!fs.existsSync(DATA_DIR)) {
+  fs.mkdirSync(DATA_DIR, { recursive: true });
+}
+
 // ─── ECDSA P-256 keypair (persisted to keypair.json) ───
 
-const KEYPAIR_FILE = path.join(ROOT_DIR, 'keypair.json');
+const KEYPAIR_FILE = path.join(DATA_DIR, 'keypair.json');
 
 let ecKeyPair;
 if (fs.existsSync(KEYPAIR_FILE)) {
@@ -42,7 +49,7 @@ const pkTagHash = crypto.createHash('md5').update(pkB64).digest('hex');
 
 // ─── Device identity (persisted to device.json) ───
 
-const DEVICE_FILE = path.join(ROOT_DIR, 'device.json');
+const DEVICE_FILE = path.join(DATA_DIR, 'device.json');
 
 let deviceId, installId, pinHash;
 if (fs.existsSync(DEVICE_FILE)) {
@@ -110,4 +117,4 @@ export const ENTRANCE_HEADERS_BASE = {
   'User-Agent': UA_BROWSER,
 };
 
-export { ROOT_DIR };
+export { ROOT_DIR, DATA_DIR };
