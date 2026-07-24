@@ -1,5 +1,7 @@
 import { Router } from 'express';
-import { DEVICE, APP, UA_NATIVE, ENTRANCE_HEADERS_BASE, KASPI_ENTRANCE_URL, KASPI_MTOKEN_URL } from '../config.js';
+import fs from 'fs';
+import path from 'path';
+import { DEVICE, APP, UA_NATIVE, ENTRANCE_HEADERS_BASE, KASPI_ENTRANCE_URL, KASPI_MTOKEN_URL, DATA_DIR } from '../config.js';
 import { createEmptySession, applyOrgContext } from '../session.js';
 import {
   generateECDH,
@@ -16,6 +18,19 @@ const router = Router();
  
 // In-flight auth sessions keyed by processId (temporary, cleared after finish)
 const authSessions = new Map();
+ 
+// ─── Persisted long-lived session (survives redeploy, used by server-to-server
+// callers like the internal bridge that can't hold browser localStorage) ───
+const SESSION_FILE = path.join(DATA_DIR, 'session.json');
+ 
+function persistSession(data) {
+  try {
+    fs.writeFileSync(SESSION_FILE, JSON.stringify({ ...data, savedAt: new Date().toISOString() }, null, 2));
+    console.log('Session persisted to session.json');
+  } catch (e) {
+    console.error('Failed to persist session.json:', e.message);
+  }
+}
  
 // ═══════════════════════════════════════════════════
 //  Step 1 — Init entrance (get processId)
@@ -342,6 +357,15 @@ async function doFinish(session) {
     if (orgBody.Data?.Current?.ProfileId) {
       applyOrgContext(session, orgBody.Data);
     }
+ 
+    persistSession({
+      tokenSN: session.tokenSN,
+      vtokenSecret,
+      profileId: session.profileId,
+      organizationId: session.organizationId,
+      orgName: session.orgName,
+      phone: session.phoneNumber,
+    });
  
     return {
       tokenSN: session.tokenSN,
