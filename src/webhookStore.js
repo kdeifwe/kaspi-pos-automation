@@ -1,10 +1,11 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-
+import { DATA_DIR } from './config.js';
+ 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const WEBHOOKS_FILE = path.join(__dirname, '..', 'webhooks.json');
-
+const WEBHOOKS_FILE = path.join(DATA_DIR, 'webhooks.json');
+ 
 /**
  * Читает webhooks.json и возвращает массив вебхуков.
  * При ошибке чтения/парсинга возвращает [].
@@ -22,10 +23,11 @@ export const loadWebhooks = () => {
     return [];
   }
 };
-
+ 
 /**
  * Возвращает вебхуки, подписанные на указанное событие.
  */
 export const getWebhooksByEvent = (event) => {
   return loadWebhooks().filter((hook) => hook.url && Array.isArray(hook.events) && hook.events.includes(event));
 };
+ 
