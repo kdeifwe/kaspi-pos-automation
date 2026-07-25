@@ -96,9 +96,14 @@ router.post('/create', async (req, res) => {
     });
     const kaspiResponse = await resp.json();
     const d = kaspiResponse.Data;
-    if (d && d.Id && d.Status === 'RemotePaymentCreated') {
+    // NOTE: real Kaspi responses for this endpoint return { QrOperationId, ... }
+    // at top level of Data, with success indicated by kaspiResponse.StatusCode === 0 —
+    // NOT d.Id / d.Status === 'RemotePaymentCreated' as the upstream code originally
+    // assumed (that condition never matched real traffic, so trackPayment/polling/
+    // webhooks never fired for any invoice created through this route).
+    if (d && d.QrOperationId && kaspiResponse.StatusCode === 0) {
       trackPayment(
-        d.Id,
+        String(d.QrOperationId),
         'invoice',
         {
           tokenSN: req.session.tokenSN,
