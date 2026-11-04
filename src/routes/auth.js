@@ -12,7 +12,7 @@ import {
   computeXSign,
   encryptSecret,
 } from '../crypto.js';
-import { loggedFetch, extractUserToken, entranceCookie, generateUUID, nowISO } from '../helpers.js';
+import { loggedFetch, extractUserToken, entranceCookie, generateUUID, nowISO, normalizePhone } from '../helpers.js';
  
 const router = Router();
  
@@ -89,8 +89,14 @@ router.post('/init', async (req, res) => {
 // ═══════════════════════════════════════════════════
  
 router.post('/send-phone', async (req, res) => {
-  const { phoneNumber, processId } = req.body;
-  if (!phoneNumber) return res.status(400).json({ error: 'phoneNumber required (e.g. 7XXXXXXXXX)' });
+  const { processId } = req.body;
+  if (!req.body.phoneNumber) {
+    return res.status(400).json({ error: 'phoneNumber required: 10 digits without country code (e.g. 7001234567)' });
+  }
+  const phoneNumber = normalizePhone(req.body.phoneNumber);
+  if (phoneNumber.length !== 10) {
+    return res.status(400).json({ error: 'phoneNumber must be 10 digits without country code (e.g. 7001234567)' });
+  }
   if (!processId) return res.status(400).json({ error: 'processId required (from /api/auth/init)' });
  
   const session = authSessions.get(processId);
@@ -119,13 +125,24 @@ router.post('/send-phone', async (req, res) => {
     const body = await resp.json();
     const smsSent = body.view?.code === 'EnterOtp';
     const passwordRequired = body.view?.code === 'KPEnterLoginPassword';
- 
+
+    // Surface WHY Kaspi declined so callers can tell a phone-input rejection (fixable by the user) from a
+    // system/config block that is NOT about the phone — e.g. OldVersionToUpdate (app version below Kaspi's
+    // minimum). Kaspi puts the reason in the on-open alarm (version/system gates) or an error object (phone).
+    const kaspiErr = body.view?.onOpenAlarm?.error || body.error || body.data?.error || null;
+    const errorCode = smsSent ? undefined : kaspiErr?.code;
+    const errorMessage = smsSent
+      ? undefined
+      : kaspiErr?.label || kaspiErr?.desc || kaspiErr?.description || body.data?.desc;
+
     res.json({
       success: smsSent,
       passwordRequired,
       processId: session.processId,
       desc: body.data?.desc,
       view: body.view?.code,
+      errorCode,
+      errorMessage,
       body,
     });
   } catch (err) {

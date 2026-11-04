@@ -111,7 +111,7 @@ curl -X POST http://localhost:3000/api/auth/init
 
 | Өріс | Түрі | Міндетті | Сипаттама |
 |---|---|---|---|
-| `phoneNumber` | `string` | ✅ | Телефон нөмірі (формат: `7XXXXXXXXXX`) |
+| `phoneNumber` | `string` | ✅ | Кассирдің телефон нөмірі: ел кодынсыз 10 цифр, мысалы `7001234567` |
 | `processId` | `string` | ✅ | `/api/auth/init` процесінің ID-сі |
 
 **Сұраныс мысалы:**
@@ -119,8 +119,10 @@ curl -X POST http://localhost:3000/api/auth/init
 ```bash
 curl -X POST http://localhost:3000/api/auth/send-phone \
   -H "Content-Type: application/json" \
-  -d '{"phoneNumber": "77001234567", "processId": "abc123-..."}'
+  -d '{"phoneNumber": "7001234567", "processId": "abc123-..."}'
 ```
+
+> ⚠️ **Маңызды:** Нөмір ел кодынсыз көрсетіледі. Ел коды бар нөмір (`+7` немесе `8`) автоматты түрде 10 таңбалы түрге келтіріледі.
 
 **Сәтті жауап:**
 
@@ -168,7 +170,7 @@ curl -X POST http://localhost:3000/api/auth/verify-otp \
   "profileId": 12345,
   "organizationId": 67890,
   "orgName": "ЖК Иванов",
-  "phone": "77001234567",
+  "phone": "7001234567",
   "organizations": [ ... ]
 }
 ```
@@ -535,7 +537,7 @@ curl "http://localhost:3000/api/session/check" \
 
 | HTTP-код | Сипаттама |
 |---|---|
-| `400` | Міндетті параметрлер жоқ |
+| `400` | Міндетті параметрлер жоқ немесе параметр форматы қате |
 | `401` | Сессия тақырыптары жоқ немесе жарамсыз |
 | `500` | Сервердің ішкі қатесі немесе Kaspi API қатесі |
 
@@ -553,7 +555,7 @@ curl "http://localhost:3000/api/session/check" \
 [
   {
     "url": "https://example.com/webhook",
-    "events": ["payment.success", "payment.failed", "payment.expired"],
+    "events": ["payment.success", "payment.failed", "payment.expired", "payment.lost"],
     "secret": "your-webhook-secret"
   }
 ]
@@ -578,7 +580,7 @@ curl "http://localhost:3000/api/session/check" \
   },
   {
     "url": "https://my-accounting.com/hook",
-    "events": ["payment.success", "payment.failed", "payment.expired"],
+    "events": ["payment.success", "payment.failed", "payment.expired", "payment.lost"],
     "secret": "accounting-secret"
   }
 ]
@@ -591,6 +593,7 @@ curl "http://localhost:3000/api/session/check" \
 | `payment.success` | Төлем сәтті өтті | QR: `Processed` статусы; Invoice: `Processed` статусы |
 | `payment.failed` | Төлем қабылданбады / бас тартылды | QR: `CancelledByUser`, `Rejected`, `Error` және т.б.; Invoice: `RemotePaymentCanceled`, `RemotePaymentRejected` |
 | `payment.expired` | Төлем уақыты аяқталды | QR: `QrTokenDiscarded`, `Expired`; Invoice: `Expired` |
+| `payment.lost` | Төлем статусы белгісіз — қолмен тексеру қажет | Kaspi сессиясы ығыстырылды (`SessionExpired`) немесе сұрау әрекеттері таусылды (`PollingFailed`) |
 
 ### Payload форматы
 
@@ -614,7 +617,7 @@ curl "http://localhost:3000/api/session/check" \
 
 | Өріс | Түрі | Сипаттама |
 |---|---|---|
-| `event` | `string` | Оқиға атауы (`payment.success`, `payment.failed`, `payment.expired`) |
+| `event` | `string` | Оқиға атауы (`payment.success`, `payment.failed`, `payment.expired`, `payment.lost`) |
 | `paymentId` | `string` | Төлем ID-сі (QR operationId немесе invoice operationId) |
 | `type` | `string` | Төлем түрі: `qr` немесе `invoice` |
 | `status` | `string` | Kaspi API-ден финалды статус |
